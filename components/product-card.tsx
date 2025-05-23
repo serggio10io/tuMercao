@@ -1,14 +1,15 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import type { Product } from "@/lib/types"
-import { Plus } from "lucide-react"
+import { Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/contexts/cart-context"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 interface ProductCardProps {
   product: Product
@@ -16,15 +17,26 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { dispatch } = useCart()
+  const [quantity, setQuantity] = useState(1)
 
   const addToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    dispatch({ type: "ADD_ITEM", payload: product })
+
+    // Crear una copia del producto con la cantidad seleccionada
+    const productWithQuantity = {
+      ...product,
+      quantity: quantity,
+    }
+
+    dispatch({ type: "ADD_ITEM", payload: productWithQuantity })
     toast({
       title: "Producto añadido",
-      description: `${product.name} se añadió al carrito`,
+      description: `${quantity} ${quantity > 1 ? "unidades" : "unidad"} de ${product.name} se añadió al carrito`,
     })
+
+    // Resetear la cantidad a 1 después de añadir al carrito
+    setQuantity(1)
   }
 
   return (
@@ -67,16 +79,41 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.price} CUP
           </motion.span>
 
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              onClick={addToCart}
-              size="sm"
-              className="bg-highlight text-secondary hover:bg-highlight/90 font-semibold text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
-            >
-              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-              Añadir
-            </Button>
-          </motion.div>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center border rounded-md overflow-hidden">
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setQuantity(Math.max(1, quantity - 1))
+                }}
+                className="px-1 sm:px-2 py-1 bg-gray-100 hover:bg-gray-200 text-secondary"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className="px-1 sm:px-2 py-1 text-xs sm:text-sm font-medium">{quantity}</span>
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setQuantity(quantity + 1)
+                }}
+                className="px-1 sm:px-2 py-1 bg-gray-100 hover:bg-gray-200 text-secondary"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={addToCart}
+                size="sm"
+                className="bg-highlight text-secondary hover:bg-highlight/90 font-semibold text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+              >
+                Añadir
+              </Button>
+            </motion.div>
+          </div>
         </div>
       </div>
     </motion.div>

@@ -15,7 +15,7 @@ interface CartState {
 }
 
 type CartAction =
-  | { type: "ADD_ITEM"; payload: Product }
+  | { type: "ADD_ITEM"; payload: Product & { quantity?: number } }
   | { type: "REMOVE_ITEM"; payload: string }
   | { type: "UPDATE_QUANTITY"; payload: { id: string; quantity: number } }
   | { type: "CLEAR_CART" }
@@ -29,17 +29,19 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
     case "ADD_ITEM": {
       const existingItem = state.items.find((item) => item.id === action.payload.id)
+      const quantityToAdd = action.payload.quantity || 1
 
       if (existingItem) {
         const updatedItems = state.items.map((item) =>
-          item.id === action.payload.id ? { ...item, quantity: item.quantity + 1 } : item,
+          item.id === action.payload.id ? { ...item, quantity: item.quantity + quantityToAdd } : item,
         )
         const total = updatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
         const itemCount = updatedItems.reduce((sum, item) => sum + item.quantity, 0)
 
         return { items: updatedItems, total, itemCount }
       } else {
-        const newItems = [...state.items, { ...action.payload, quantity: 1 }]
+        const newItem = { ...action.payload, quantity: quantityToAdd }
+        const newItems = [...state.items, newItem]
         const total = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
         const itemCount = newItems.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -94,9 +96,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (savedCart) {
       try {
         const parsedCart = JSON.parse(savedCart)
-        if (parsedCart.items) {
-          parsedCart.items.forEach((item: CartItem) => {
-            dispatch({ type: "ADD_ITEM", payload: item })
+        if (parsedCart.items && Array.isArray(parsedCart.items)) {
+          const initialState = {
+            items: parsedCart.items,
+            total: parsedCart.items.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0),
+            itemCount: parsedCart.items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0),
+          }
+          dispatch({ type: "CLEAR_CART" })
+          initialState.items.forEach((item: CartItem) => {
+            dispatch({ type: "ADD_ITEM", payload: { ...item, quantity: item.quantity } })
           })
         }
       } catch (error) {

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import ImageUpload from "@/components/admin/image-upload"
 
 interface AddProductModalProps {
   isOpen: boolean
@@ -22,23 +23,29 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
     name: "",
     description: "",
     price: "",
-    image: "",
     category: "",
     stock: "",
     location: "Camagüey",
     contactNumber: "+58850138",
     sellerName: "tuMercao",
+    images: [] as string[],
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.images.length === 0) {
+      alert("Por favor añade al menos una imagen del producto")
+      return
+    }
 
     addProduct({
       name: formData.name,
       description: formData.description,
       price: Number.parseFloat(formData.price),
       discount: 0,
-      image: formData.image,
+      image: formData.images[0], // First image as main image
+      images: formData.images,
       category: formData.category,
       stock: Number.parseInt(formData.stock),
       location: formData.location,
@@ -50,17 +57,17 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
       sellerMemberSince: "2022",
     })
 
-    // Resetear formulario
+    // Reset form
     setFormData({
       name: "",
       description: "",
       price: "",
-      image: "",
       category: "",
       stock: "",
       location: "Camagüey",
       contactNumber: "+58850138",
       sellerName: "tuMercao",
+      images: [],
     })
 
     onClose()
@@ -68,11 +75,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Añadir Nuevo Producto</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <Label htmlFor="name">Nombre del producto</Label>
             <Input
@@ -93,28 +100,30 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
             />
           </div>
 
-          <div>
-            <Label htmlFor="price">Precio (CUP)</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
-              required
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="price">Precio (CUP)</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                required
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="stock">Stock inicial</Label>
-            <Input
-              id="stock"
-              type="number"
-              min="0"
-              value={formData.stock}
-              onChange={(e) => setFormData((prev) => ({ ...prev, stock: e.target.value }))}
-              required
-            />
+            <div>
+              <Label htmlFor="stock">Stock inicial</Label>
+              <Input
+                id="stock"
+                type="number"
+                min="0"
+                value={formData.stock}
+                onChange={(e) => setFormData((prev) => ({ ...prev, stock: e.target.value }))}
+                required
+              />
+            </div>
           </div>
 
           <div>
@@ -135,17 +144,11 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="image">URL de la imagen</Label>
-            <Input
-              id="image"
-              type="url"
-              value={formData.image}
-              onChange={(e) => setFormData((prev) => ({ ...prev, image: e.target.value }))}
-              placeholder="https://blob.v0.dev/..."
-              required
-            />
-          </div>
+          <ImageUpload
+            images={formData.images}
+            onImagesChange={(images) => setFormData((prev) => ({ ...prev, images }))}
+            maxImages={5}
+          />
 
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">

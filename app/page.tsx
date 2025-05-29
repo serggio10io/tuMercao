@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import ProductCard from "@/components/product-card"
 import HeroSection from "@/components/hero-section"
-import { products } from "@/lib/data"
+import { useProducts } from "@/contexts/products-context"
 import SloganCarousel from "@/components/slogan-carousel"
 import OffersBanner from "@/components/offers-banner"
 import { motion } from "framer-motion"
@@ -15,6 +15,8 @@ import SearchResults from "@/components/search-results"
 import PaymentInfo from "@/components/payment-info"
 
 function HomeContent() {
+  const { visibleProducts } = useProducts()
+
   return (
     <main className="min-h-screen">
       <HeroSection />
@@ -37,7 +39,7 @@ function HomeContent() {
         </motion.h2>
 
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {products.slice(0, 6).map((product) => (
+          {visibleProducts.slice(0, 6).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

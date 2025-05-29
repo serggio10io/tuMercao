@@ -5,6 +5,7 @@ export interface Product {
   price: number
   discount: number
   image: string
+  images?: string[] // Add optional images array for backward compatibility
   category: string
   location: string
   publishDate: string

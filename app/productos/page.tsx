@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { products } from "@/lib/data"
 import ProductCard from "@/components/product-card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -11,8 +10,10 @@ import { Search } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSearchParams } from "next/navigation"
+import { useProducts } from "@/contexts/products-context"
 
 export default function ProductsPage() {
+  const { visibleProducts } = useProducts()
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get("q") || ""
 
@@ -21,16 +22,16 @@ export default function ProductsPage() {
   const [locationFilter, setLocationFilter] = useState("todos")
   const [sortOrder, setSortOrder] = useState("recientes")
 
-  // Obtener categorías únicas
-  const categories = ["todos", ...Array.from(new Set(products.map((p) => p.category)))]
+  // Get unique categories from visible products
+  const categories = ["todos", ...Array.from(new Set(visibleProducts.map((p) => p.category)))]
 
-  // Obtener ubicaciones únicas
-  const locations = ["todos", ...Array.from(new Set(products.map((p) => p.location)))]
+  // Get unique locations from visible products
+  const locations = ["todos", ...Array.from(new Set(visibleProducts.map((p) => p.location)))]
 
-  // Filtrar productos
-  let filteredProducts = [...products]
+  // Filter products
+  let filteredProducts = [...visibleProducts]
 
-  // Aplicar filtro de búsqueda
+  // Apply search filter
   if (searchQuery) {
     filteredProducts = filteredProducts.filter(
       (product) =>
@@ -39,24 +40,25 @@ export default function ProductsPage() {
     )
   }
 
-  // Aplicar filtro de categoría
+  // Apply category filter
   if (categoryFilter !== "todos") {
     filteredProducts = filteredProducts.filter((product) => product.category === categoryFilter)
   }
 
-  // Aplicar filtro de ubicación
+  // Apply location filter
   if (locationFilter !== "todos") {
     filteredProducts = filteredProducts.filter((product) => product.location === locationFilter)
   }
 
-  // Aplicar ordenamiento
+  // Apply sorting
   if (sortOrder === "recientes") {
-    // Asumiendo que los IDs más altos son los más recientes
     filteredProducts.sort((a, b) => Number.parseInt(b.id) - Number.parseInt(a.id))
   } else if (sortOrder === "precio-bajo") {
     filteredProducts.sort((a, b) => a.price - b.price)
   } else if (sortOrder === "precio-alto") {
     filteredProducts.sort((a, b) => b.price - a.price)
+  } else if (sortOrder === "stock") {
+    filteredProducts.sort((a, b) => (b.stock || 0) - (a.stock || 0))
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -75,7 +77,9 @@ export default function ProductsPage() {
 
   return (
     <main className="container px-4 py-8 mx-auto">
-      <h1 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl text-gradient">Todos los Productos</h1>
+      <h1 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl text-gradient">
+        Productos Disponibles ({visibleProducts.length})
+      </h1>
 
       <form onSubmit={handleSearch} className="flex flex-col mb-8 sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -144,6 +148,7 @@ export default function ProductsPage() {
                   <SelectItem value="recientes">Más recientes</SelectItem>
                   <SelectItem value="precio-bajo">Precio: de menor a mayor</SelectItem>
                   <SelectItem value="precio-alto">Precio: de mayor a menor</SelectItem>
+                  <SelectItem value="stock">Mayor stock disponible</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -154,7 +159,11 @@ export default function ProductsPage() {
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold mb-2">No se encontraron productos</h2>
-          <p className="text-muted-foreground mb-6">Intenta con otros filtros o términos de búsqueda</p>
+          <p className="text-muted-foreground mb-6">
+            {visibleProducts.length === 0
+              ? "No hay productos disponibles en este momento"
+              : "Intenta con otros filtros o términos de búsqueda"}
+          </p>
           <Button
             onClick={() => {
               setSearchQuery("")

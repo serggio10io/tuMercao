@@ -3,11 +3,14 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { MessageCircle, ArrowLeft, MapPin, Calendar } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { MessageCircle, ArrowLeft, MapPin, Calendar, AlertTriangle } from "lucide-react"
 import { products } from "@/lib/data"
 import Link from "next/link"
 import ProductCard from "@/components/product-card"
+import ProductImageGallery from "@/components/product-image-gallery"
 import { useEffect, useState } from "react"
+import { useProducts } from "@/contexts/products-context"
 import type { Product } from "@/lib/types"
 
 interface ProductPageProps {
@@ -17,18 +20,43 @@ interface ProductPageProps {
 }
 
 export default function ProductPage({ params }: ProductPageProps) {
-  const [product, setProduct] = useState<Product | null>(null)
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const { visibleProducts, getStockStatus } = useProducts()
+  const [product, setProduct] = useState<(Product & { stock?: number; images?: string[] }) | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<(Product & { stock?: number; images?: string[] })[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Simulate loading
     const timer = setTimeout(() => {
-      const foundProduct = products.find((p) => p.id === params.id) || products[0]
+      // First try to find in managed products (with stock info)
+      let foundProduct = visibleProducts.find((p) => p.id === params.id)
+
+      // If not found, fallback to static products
+      if (!foundProduct) {
+        const staticProduct = products.find((p) => p.id === params.id)
+        if (staticProduct) {
+          foundProduct = {
+            ...staticProduct,
+            stock: 10, // Default stock
+            images: [staticProduct.image], // Convert to array
+          }
+        }
+      }
+
+      // If still not found, use first available product
+      if (!foundProduct) {
+        foundProduct = visibleProducts[0] || {
+          ...products[0],
+          stock: 10,
+          images: [products[0].image],
+        }
+      }
+
       setProduct(foundProduct)
 
-      const related = products
-        .filter((p) => p.category === foundProduct.category && p.id !== foundProduct.id)
+      // Get related products from visible products
+      const related = visibleProducts
+        .filter((p) => p.category === foundProduct!.category && p.id !== foundProduct!.id)
         .slice(0, 3)
       setRelatedProducts(related)
 
@@ -36,7 +64,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [params.id])
+  }, [params.id, visibleProducts])
 
   if (loading) {
     return (
@@ -68,6 +96,10 @@ export default function ProductPage({ params }: ProductPageProps) {
     }
   }
 
+  const stock = product.stock ?? 10
+  const stockStatus = getStockStatus(stock)
+  const images = product.images || [product.image]
+
   return (
     <main className="container px-4 py-8 mx-auto">
       <Button variant="ghost" asChild className="mb-6">
@@ -78,25 +110,25 @@ export default function ProductPage({ params }: ProductPageProps) {
       </Button>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <div className="relative aspect-square rounded-lg overflow-hidden">
-          <Image
-            src={product.image || "/placeholder.svg"}
-            alt={product.name}
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover"
-            priority
-          />
-          {product.discount > 0 && (
-            <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-md font-bold text-lg">
-              -{product.discount}%
-            </div>
-          )}
-        </div>
+        <ProductImageGallery images={images} productName={product.name} />
 
         <div>
-          <h1 className="text-3xl font-bold md:text-4xl">{product.name}</h1>
+          <div className="flex items-start justify-between mb-4">
+            <h1 className="text-3xl font-bold md:text-4xl">{product.name}</h1>
+            {product.discount > 0 && (
+              <Badge variant="destructive" className="text-lg">
+                -{product.discount}%
+              </Badge>
+            )}
+          </div>
+
           <p className="mt-4 text-2xl font-bold text-amber-600">{product.price} CUP</p>
+
+          {/* Stock Status */}
+          <div className="mt-4 flex items-center gap-2">
+            <span className={`font-medium ${stockStatus.color}`}>{stockStatus.status}</span>
+            {stock <= 2 && stock > 0 && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+          </div>
 
           <div className="flex items-center mt-4 text-gray-600">
             <MapPin className="mr-2 h-5 w-5" />
@@ -114,9 +146,11 @@ export default function ProductPage({ params }: ProductPageProps) {
           </div>
 
           <div className="mt-8">
-            <Button size="lg" className="w-full text-lg font-bold" onClick={handleContactClick}>
+            <Button size="lg" className="w-full text-lg font-bold" onClick={handleContactClick} disabled={stock === 0}>
               <MessageCircle className="mr-2 h-5 w-5" />
-              Contactar por {product.contactType === "whatsapp" ? "WhatsApp" : "Telegram"}
+              {stock === 0
+                ? "Producto agotado"
+                : `Contactar por ${product.contactType === "whatsapp" ? "WhatsApp" : "Telegram"}`}
             </Button>
           </div>
 
@@ -141,14 +175,16 @@ export default function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      <section className="mt-16">
-        <h2 className="text-2xl font-bold mb-6">Productos Relacionados</h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {relatedProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      </section>
+      {relatedProducts.length > 0 && (
+        <section className="mt-16">
+          <h2 className="text-2xl font-bold mb-6">Productos Relacionados</h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   )
 }

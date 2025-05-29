@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/media/Sergio/Sergio/sergioProgram/CLASS/proyectos/TuMercao/codigoFuente/app/layout\":[\"static/media/4f05ba3a6752a328-s.p.woff2\",\"static/media/3d9ea938b6afa941-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

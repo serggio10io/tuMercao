@@ -14,10 +14,20 @@ export default function Footer() {
           </div>
 
           <div className="flex space-x-6">
-            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+            <a
+              href="https://www.facebook.com/share/1H2npcyz3u/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+            >
               <Facebook className="w-5 h-5 text-text hover:text-secondary transition-colors" />
             </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+            <a
+              href="https://www.instagram.com/tumercao_?igsh=MW5iNXpvMHIxZ200dQ=="
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+            >
               <Instagram className="w-5 h-5 text-text hover:text-secondary transition-colors" />
             </a>
             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">

@@ -1,30 +1,22 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Montserrat, Open_Sans } from "next/font/google"
+import { Inter } from "next/font/google"
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { CartProvider } from "@/contexts/cart-context"
-import { AdminProvider } from "@/contexts/admin-context"
 import { ProductsProvider } from "@/contexts/products-context"
+import { AdminProvider } from "@/contexts/admin-context"
 import { DeliveryProvider } from "@/contexts/delivery-context"
+import { RealTimeProvider } from "@/contexts/real-time-context"
 import { Toaster } from "@/components/ui/toaster"
 
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-montserrat",
-  display: "swap",
-})
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  variable: "--font-open-sans",
-  display: "swap",
-})
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "tuMercao | Tu mercado digital en Camagüey",
-  description: "Productos locales de todos los repartos de Camagüey. Calidad que se lleva a casa.",
+  title: "tuMercao - Mercado Online de Camagüey",
+  description: "Encuentra productos frescos y artículos locales en Camagüey",
     generator: 'v0.dev'
 }
 
@@ -35,19 +27,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${montserrat.variable} ${openSans.variable} font-sans bg-background text-text`}>
-        <AdminProvider>
-          <ProductsProvider>
-            <DeliveryProvider>
-              <CartProvider>
-                <Header />
-                <main>{children}</main>
-                <Footer />
-                <Toaster />
-              </CartProvider>
-            </DeliveryProvider>
-          </ProductsProvider>
-        </AdminProvider>
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <RealTimeProvider>
+            <AdminProvider>
+              <ProductsProvider>
+                <CartProvider>
+                  <DeliveryProvider>
+                    <div className="flex flex-col min-h-screen">
+                      <Header />
+                      <main className="flex-grow">{children}</main>
+                      <Footer />
+                    </div>
+                    <Toaster />
+                  </DeliveryProvider>
+                </CartProvider>
+              </ProductsProvider>
+            </AdminProvider>
+          </RealTimeProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

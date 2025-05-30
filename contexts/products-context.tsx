@@ -1,49 +1,102 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { products as initialProducts } from "@/lib/data"
 import type { Product } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+import { cloudStorage } from "@/lib/cloud-storage"
 
 interface ProductWithStock extends Product {
   stock: number
-  images: string[] // Add support for multiple images
-  isVisible: boolean // Add visibility flag
+  images: string[]
+  isVisible: boolean
+  createdAt?: number
+  updatedAt?: number
 }
 
 interface ProductsContextType {
   products: ProductWithStock[]
-  visibleProducts: ProductWithStock[] // Only products with stock > 0
-  addProduct: (product: Omit<ProductWithStock, "id" | "isVisible">) => void
-  removeProduct: (id: string) => void
+  visibleProducts: ProductWithStock[]
+  isLoading: boolean
+  isSyncing: boolean
+  addProduct: (product: Omit<ProductWithStock, "id" | "isVisible" | "createdAt" | "updatedAt">) => Promise<void>
+  removeProduct: (id: string) => Promise<void>
+  updateProduct: (id: string, updates: Partial<ProductWithStock>) => Promise<void>
   updateStock: (id: string, stock: number) => void
   updateProductImages: (id: string, images: string[]) => void
-  saveStockChanges: () => void
+  saveStockChanges: () => Promise<void>
   getStockStatus: (stock: number) => { status: string; color: string }
-  toggleProductVisibility: (id: string) => void
+  toggleProductVisibility: (id: string) => Promise<void>
+  syncProducts: () => Promise<void>
 }
 
 const ProductsContext = createContext<ProductsContextType | undefined>(undefined)
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<ProductWithStock[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
 
+  // Initialize products and set up real-time sync
   useEffect(() => {
-    // Load products from localStorage or use initial data
-    const savedProducts = localStorage.getItem("admin_products")
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts))
-    } else {
-      // Convert initial products adding stock and multiple images support
-      const productsWithStock = initialProducts.map((product) => ({
-        ...product,
-        stock: Math.floor(Math.random() * 20) + 1, // Random stock between 1-20
-        images: [product.image], // Convert single image to array
-        isVisible: true,
-      }))
-      setProducts(productsWithStock)
-      localStorage.setItem("admin_products", JSON.stringify(productsWithStock))
+    let cleanup: (() => void) | null = null
+
+    const initializeProducts = async () => {
+      try {
+        setIsLoading(true)
+
+        // Load products from storage
+        const storedProducts = await cloudStorage.loadProducts()
+
+        if (storedProducts.length > 0) {
+          setProducts(storedProducts)
+        } else {
+          // Initialize with default products if no stored data
+          const initialProductsWithStock = initialProducts.map((product) => ({
+            ...product,
+            stock: Math.floor(Math.random() * 20) + 1,
+            images: [product.image],
+            isVisible: true,
+            createdAt: Date.now() - Math.random() * 86400000, // Random time in last 24h
+            updatedAt: Date.now(),
+          }))
+
+          setProducts(initialProductsWithStock)
+          await cloudStorage.saveProducts(initialProductsWithStock)
+        }
+
+        // Start real-time sync
+        cleanup = cloudStorage.startPolling((updatedProducts) => {
+          setProducts(updatedProducts)
+        }, 3000) // Poll every 3 seconds for faster updates
+      } catch (error) {
+        console.error("Failed to initialize products:", error)
+        toast({
+          title: "Error de inicialización",
+          description: "Se cargaron los productos por defecto",
+          variant: "destructive",
+        })
+
+        // Fallback to initial products
+        const fallbackProducts = initialProducts.map((product) => ({
+          ...product,
+          stock: Math.floor(Math.random() * 20) + 1,
+          images: [product.image],
+          isVisible: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }))
+        setProducts(fallbackProducts)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeProducts()
+
+    return () => {
+      cleanup?.()
     }
   }, [])
 
@@ -59,25 +112,104 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
   const visibleProducts = products.filter((product) => product.isVisible && product.stock > 0)
 
-  const addProduct = (productData: Omit<ProductWithStock, "id" | "isVisible">) => {
+  const syncProducts = useCallback(async () => {
+    try {
+      setIsSyncing(true)
+
+      // Force a sync
+      const success = await cloudStorage.forceSync()
+
+      if (success) {
+        const updatedProducts = await cloudStorage.loadProducts()
+        setProducts(updatedProducts)
+
+        toast({
+          title: "✅ Productos sincronizados",
+          description: "Los productos se han actualizado correctamente",
+        })
+      } else {
+        throw new Error("Sync failed")
+      }
+    } catch (error) {
+      console.error("Sync failed:", error)
+      toast({
+        title: "Error de sincronización",
+        description: "Los productos están actualizados localmente",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [])
+
+  const saveProducts = async (updatedProducts: ProductWithStock[]) => {
+    setProducts(updatedProducts)
+
+    try {
+      setIsSyncing(true)
+      const success = await cloudStorage.saveProducts(updatedProducts)
+
+      if (!success) {
+        toast({
+          title: "⚠️ Guardado local",
+          description: "Los cambios se guardaron correctamente",
+          variant: "default",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to save products:", error)
+      toast({
+        title: "Error al guardar",
+        description: "Los cambios se mantuvieron localmente",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  const addProduct = async (productData: Omit<ProductWithStock, "id" | "isVisible" | "createdAt" | "updatedAt">) => {
     const newProduct: ProductWithStock = {
       ...productData,
       id: Date.now().toString(),
       isVisible: productData.stock > 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     }
+
     const updatedProducts = [...products, newProduct]
-    setProducts(updatedProducts)
-    localStorage.setItem("admin_products", JSON.stringify(updatedProducts))
+    await saveProducts(updatedProducts)
+
     toast({
       title: "✅ Producto añadido",
       description: "El producto se ha añadido correctamente",
     })
   }
 
-  const removeProduct = (id: string) => {
+  const updateProduct = async (id: string, updates: Partial<ProductWithStock>) => {
+    const updatedProducts = products.map((product) =>
+      product.id === id
+        ? {
+            ...product,
+            ...updates,
+            updatedAt: Date.now(),
+            isVisible: updates.stock !== undefined ? updates.stock > 0 : product.isVisible,
+          }
+        : product,
+    )
+
+    await saveProducts(updatedProducts)
+
+    toast({
+      title: "✅ Producto actualizado",
+      description: "El producto se ha actualizado correctamente",
+    })
+  }
+
+  const removeProduct = async (id: string) => {
     const updatedProducts = products.filter((p) => p.id !== id)
-    setProducts(updatedProducts)
-    localStorage.setItem("admin_products", JSON.stringify(updatedProducts))
+    await saveProducts(updatedProducts)
+
     toast({
       title: "🗑️ Producto eliminado",
       description: "El producto se ha eliminado correctamente",
@@ -85,20 +217,27 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateStock = (id: string, stock: number) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stock, isVisible: stock > 0 } : p)))
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stock, isVisible: stock > 0, updatedAt: Date.now() } : p)),
+    )
   }
 
   const updateProductImages = (id: string, images: string[]) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, images, image: images[0] || p.image } : p)))
-    localStorage.setItem("admin_products", JSON.stringify(products))
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, images, image: images[0] || p.image, updatedAt: Date.now() } : p)),
+    )
   }
 
-  const toggleProductVisibility = (id: string) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isVisible: !p.isVisible } : p)))
+  const toggleProductVisibility = async (id: string) => {
+    const updatedProducts = products.map((p) =>
+      p.id === id ? { ...p, isVisible: !p.isVisible, updatedAt: Date.now() } : p,
+    )
+    await saveProducts(updatedProducts)
   }
 
-  const saveStockChanges = () => {
-    localStorage.setItem("admin_products", JSON.stringify(products))
+  const saveStockChanges = async () => {
+    await saveProducts(products)
+
     toast({
       title: "✅ Stock actualizado",
       description: "Los cambios de stock se han guardado correctamente",
@@ -120,13 +259,17 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       value={{
         products,
         visibleProducts,
+        isLoading,
+        isSyncing,
         addProduct,
         removeProduct,
+        updateProduct,
         updateStock,
         updateProductImages,
         saveStockChanges,
         getStockStatus,
         toggleProductVisibility,
+        syncProducts,
       }}
     >
       {children}

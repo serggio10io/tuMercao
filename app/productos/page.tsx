@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSearchParams } from "next/navigation"
 import { useProducts } from "@/contexts/products-context"
-import AddProductButton from "@/components/add-product-button"
 
 export default function ProductsPage() {
   const { visibleProducts } = useProducts()
@@ -78,12 +77,9 @@ export default function ProductsPage() {
 
   return (
     <main className="container px-4 py-8 mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl text-gradient mb-4 sm:mb-0">
-          Productos Disponibles ({visibleProducts.length})
-        </h1>
-        <AddProductButton />
-      </div>
+      <h1 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl text-gradient">
+        Productos Disponibles ({visibleProducts.length})
+      </h1>
 
       <form onSubmit={handleSearch} className="flex flex-col mb-8 sm:flex-row gap-4">
         <div className="relative flex-1">

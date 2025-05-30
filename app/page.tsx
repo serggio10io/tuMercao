@@ -13,7 +13,6 @@ import OffersBanner from "@/components/offers-banner"
 import { motion } from "framer-motion"
 import SearchResults from "@/components/search-results"
 import PaymentInfo from "@/components/payment-info"
-import AddProductButton from "@/components/add-product-button"
 
 function HomeContent() {
   const { visibleProducts } = useProducts()
@@ -30,17 +29,14 @@ function HomeContent() {
       </section>
 
       <section className="container px-4 py-8 mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-          <motion.h2
-            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-center sm:text-left text-gradient mb-4 sm:mb-0"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            Productos Disponibles
-          </motion.h2>
-          <AddProductButton />
-        </div>
+        <motion.h2
+          className="mb-8 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-center text-gradient"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          Productos Disponibles
+        </motion.h2>
 
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {visibleProducts.slice(0, 6).map((product) => (
